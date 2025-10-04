@@ -88,7 +88,7 @@ export function MapSelector({ onLocationSelect, searchLocation }: MapSelectorPro
           onLocationSelect(`${lat.toFixed(4)}, ${lng.toFixed(4)}`, lat, lng)
         }
       } catch (error) {
-        console.error("Error en geocoding:", error)
+  console.error("Geocoding error:", error)
         onLocationSelect(`${lat.toFixed(4)}, ${lng.toFixed(4)}`, lat, lng)
       }
     })
@@ -133,14 +133,14 @@ export function MapSelector({ onLocationSelect, searchLocation }: MapSelectorPro
 
           const mapInst = mapInstanceRef.current
           if (!isMounted || !mapInst || typeof mapInst.getContainer !== "function" || !mapInst.getContainer()) {
-            console.error("El mapa no está completamente inicializado o ya fue desmontado")
+            console.error("Map is not fully initialized or has been unmounted")
             return
           }
 
           try {
             mapInst.setView([latNum, lonNum], 12)
-          } catch (err) {
-            console.error("Error al mover la vista del mapa (setView):", err)
+            } catch (err) {
+            console.error("Error moving map view (setView):", err)
             return
           }
 
@@ -165,16 +165,16 @@ export function MapSelector({ onLocationSelect, searchLocation }: MapSelectorPro
                   newMarker.addTo(mapInstanceRef.current)
                   markerRef.current = newMarker
                 } catch (err) {
-                  console.error("No se pudo añadir el marcador al mapa:", err)
+                  console.error("Could not add marker to map:", err)
                 }
               }
             }
           } catch (markerError) {
-            console.error("Error al crear/mover el marcador:", markerError)
+            console.error("Error creating/moving marker:", markerError)
           }
         }
       } catch (error) {
-        console.error("Error en geocoding:", error)
+        console.error("Geocoding error:", error)
       }
     }
 
@@ -193,7 +193,7 @@ export function MapSelector({ onLocationSelect, searchLocation }: MapSelectorPro
       <div className="w-full h-[250px] sm:h-[300px] md:h-[400px] bg-card rounded-xl border-2 border-border flex items-center justify-center">
         <div className="text-center">
           <MapPin className="w-8 h-8 md:w-12 md:h-12 text-primary mx-auto mb-2 animate-pulse" />
-          <p className="text-sm md:text-base text-muted-foreground">Cargando mapa...</p>
+          <p className="text-sm md:text-base text-muted-foreground">Loading map...</p>
         </div>
       </div>
     )
@@ -203,7 +203,7 @@ export function MapSelector({ onLocationSelect, searchLocation }: MapSelectorPro
     <div className="w-full">
       <div className="mb-2 flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
         <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
-        <span>Haz clic en el mapa para seleccionar una ubicación</span>
+  <span>Click on the map to select a location</span>
       </div>
       <div
         ref={mapRef}

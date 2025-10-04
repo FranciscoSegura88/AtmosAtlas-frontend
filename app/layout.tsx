@@ -7,8 +7,8 @@ import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Pronóstico del Clima",
-  description: "Descubre el clima en cualquier ubicación del mundo",
+  title: "Weather Forecast",
+  description: "Discover the weather for any location in the world",
   generator: "v0.app",
 }
 

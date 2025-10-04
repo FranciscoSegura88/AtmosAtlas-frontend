@@ -1,32 +1,32 @@
-Integración del mapa (sin mover nada más)
+Map integration (no other files moved)
 
-Se copiaron/crearon solo los archivos necesarios para que funcione el mapa y que, al dar clic,
-se envíe la ubicación y aparezca en el buscador existente.
+Only the files required to make the map work were copied/created. Clicking the map
+sends the location and populates the existing search input.
 
-ARCHIVOS NUEVOS dentro de src/components/map/
-  - MapSelector.jsx  (usa react-leaflet + leaflet)
-  - MapView.jsx      (vista simple para probar el mapa)
+NEW FILES under src/components/map/
+  - MapSelector.jsx  (uses react-leaflet + leaflet)
+  - MapView.jsx      (simple view to test the map)
 
-PAQUETES agregados en package.json (instálalos en tu proyecto):
+PACKAGES added to package.json (install them in your project):
   - leaflet
   - react-leaflet
 
-HOJA DE ESTILOS
-  - Se añadió la importación de la hoja de estilos de Leaflet en: /mnt/data/_merge_weather_map/weather_app/app/globals.css
+STYLESHEET
+  - The Leaflet stylesheet import was added in: /mnt/data/_merge_weather_map/weather_app/app/globals.css
 
-LISTENER INYECTADO
-  - Se inyectó un listener en: src/main.jsx
-    Este listener escucha el evento CustomEvent('locationSelected') que emite el Mapa,
-    y coloca el nombre de la ubicación en cualquier input que tenga:
-      name="search"  o  data-role="search"  o  placeholder que contenga "Busca"/"Search"
+INJECTED LISTENER
+  - A listener was injected in: src/main.jsx
+    This listener listens for the CustomEvent('locationSelected') emitted by the map,
+    and sets the location name into any input that matches:
+      name="search"  or  data-role="search"  or  placeholder that contains "Search"
 
-CÓMO PROBAR
-  1) Instala dependencias nuevas:
+HOW TO TEST
+  1) Install new dependencies:
      npm i leaflet react-leaflet
-  2) En cualquier página, importa la vista:
-     import MapView from "@/components/map/MapView";  // ajusta el alias si no usas "@"
+  2) On any page, import the view:
+     import MapView from "@/components/map/MapView";  // adjust alias if you don't use "@"
      <MapView />
-  3) Haz clic en el mapa; debería actualizar tu campo de búsqueda automáticamente.
+  3) Click on the map; it should update your search input automatically.
 
-NOTA: El componente usa Nominatim (OSM) para reverse geocoding (sin clave).
-      Si prefieres Google, reemplaza el fetch dentro de MapSelector.jsx.
+NOTE: The component uses Nominatim (OSM) for reverse geocoding (no key required).
+      If you prefer Google, replace the fetch inside MapSelector.jsx.

@@ -42,10 +42,10 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-8 md:mb-12">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-3 md:mb-4 text-balance">
-            Pronóstico del Clima
+            Weather Forecast
           </h1>
           <p className="text-base md:text-lg text-muted-foreground text-pretty px-4">
-            Descubre el clima en cualquier ubicación del mundo, hoy o en el futuro
+            Discover the weather for any location in the world, today or in the future
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export default function Home() {
             <div className="inline-block p-6 md:p-8 bg-card rounded-2xl shadow-lg">
               <Cloud className="w-16 h-16 md:w-20 md:h-20 text-primary mx-auto mb-4 animate-float" />
               <p className="text-lg md:text-xl text-muted-foreground px-4">
-                Busca una ubicación para ver el pronóstico
+                Search for a location to see the forecast
               </p>
             </div>
           </div>

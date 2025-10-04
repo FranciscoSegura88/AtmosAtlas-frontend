@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 function generateFutureWeatherData(location: string, date: string) {
-  // Usar la fecha como semilla para generar datos consistentes
+  // Use the date as a seed to generate consistent data
   const dateObj = new Date(date)
   const dayOfYear = Math.floor((dateObj.getTime() - new Date(dateObj.getFullYear(), 0, 0).getTime()) / 86400000)
   const seed = dayOfYear + dateObj.getFullYear()
@@ -16,11 +16,11 @@ function generateFutureWeatherData(location: string, date: string) {
 
   const conditions = ["Clear", "Clouds", "Rain", "Drizzle", "Mist"]
   const descriptions = {
-    Clear: "cielo despejado",
-    Clouds: "parcialmente nublado",
-    Rain: "lluvia moderada",
-    Drizzle: "llovizna ligera",
-    Mist: "neblina",
+    Clear: "clear sky",
+    Clouds: "partly cloudy",
+    Rain: "moderate rain",
+    Drizzle: "light drizzle",
+    Mist: "mist",
   }
 
   const conditionIndex = seed % conditions.length
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get("date")
 
   if (!location) {
-    return NextResponse.json({ error: "Se requiere una ubicación" }, { status: 400 })
+    return NextResponse.json({ error: "Location is required" }, { status: 400 })
   }
 
   try {
@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(futureData)
     }
 
-    // Si no hay fecha, usar la API de OpenWeatherMap para datos actuales
+  // If there is no date, use the OpenWeatherMap API for current data
     const apiKey = process.env.OPENWEATHER_API_KEY || "demo"
     const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${apiKey}&units=metric&lang=es`,
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${apiKey}&units=metric&lang=en`,
     )
 
     if (!response.ok) {
-      // Si falla, devolvemos datos de ejemplo
+      // If it fails, return sample data
       return NextResponse.json({
         location: location,
         temperature: 22,
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         windSpeed: 12,
         visibility: 10,
         pressure: 1013,
-        description: "cielo despejado",
+        description: "clear sky",
       })
     }
 
@@ -81,15 +81,15 @@ export async function GET(request: NextRequest) {
       temperature: data.main.temp,
       condition: data.weather[0].main,
       humidity: data.main.humidity,
-      windSpeed: Math.round(data.wind.speed * 3.6), // m/s a km/h
-      visibility: Math.round(data.visibility / 1000), // metros a km
+      windSpeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
+      visibility: Math.round(data.visibility / 1000), // meters to km
       pressure: data.main.pressure,
       description: data.weather[0].description,
     })
   } catch (error) {
     console.error("[v0] Error fetching weather data:", error)
 
-    // Datos de ejemplo en caso de error
+    // Sample data in case of error
     return NextResponse.json({
       location: location,
       temperature: 22,
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       windSpeed: 12,
       visibility: 10,
       pressure: 1013,
-      description: "cielo despejado",
+      description: "clear sky",
     })
   }
 }

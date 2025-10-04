@@ -19,14 +19,14 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    // Cargar Leaflet dinámicamente
+  // Load Leaflet dynamically
     const loadLeaflet = async () => {
       const L = (await import("leaflet")).default
 
-      // Crear el mapa
+  // Create the map
       const mapInstance = L.map(mapRef.current!).setView([20, 0], 2)
 
-      // Agregar tiles del mapa
+  // Add map tiles
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 18,
@@ -34,7 +34,7 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
 
       setMap(mapInstance)
 
-      // Evento de click en el mapa
+  // Map click event
       mapInstance.on("click", async (e: any) => {
         const { lat, lng } = e.latlng
         await handleLocationClick(lat, lng, L, mapInstance)
@@ -86,10 +86,10 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
         setMarker(newMarker)
       }
 
-      // Centrar el mapa en la ubicación
+  // Center the map on the location
       mapInstance.setView([lat, lng], 10)
 
-      // Crear objeto de ubicación
+  // Create location object
       const locationData: LocationData = {
         lat,
         lng,
@@ -115,7 +115,7 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
           <div className="bg-card/90 backdrop-blur-xl p-6 rounded-lg border-2 border-primary shadow-2xl">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-            <p className="text-sm text-foreground">Obteniendo datos...</p>
+            <p className="text-sm text-foreground">Fetching data...</p>
           </div>
         </div>
       )}
@@ -123,9 +123,9 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
       <div className="absolute top-4 left-4 z-[1000] bg-card/90 backdrop-blur-xl p-4 rounded-lg border-2 border-primary shadow-2xl max-w-xs">
         <div className="flex items-start gap-3">
           <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-semibold text-foreground mb-1">Selecciona una ubicación</p>
-            <p className="text-muted-foreground text-xs">Haz clic en cualquier punto del mapa o usa el buscador</p>
+            <div className="text-sm">
+            <p className="font-semibold text-foreground mb-1">Select a location</p>
+            <p className="text-muted-foreground text-xs">Click anywhere on the map or use the search</p>
           </div>
         </div>
       </div>

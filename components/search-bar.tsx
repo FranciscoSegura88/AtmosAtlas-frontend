@@ -49,14 +49,14 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
       <div className="space-y-4 md:space-y-6">
         <div>
           <Label htmlFor="location" className="text-sm font-medium text-foreground mb-2 block">
-            Ubicación
+            Location
           </Label>
           <div className="relative">
             <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             <Input
               id="location"
               type="text"
-              placeholder="Ingresa una ciudad o selecciona en el mapa..."
+              placeholder="Insert a city or address..."
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg bg-card border-2 border-border focus:border-primary transition-colors"
@@ -71,13 +71,13 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
         </div>
 
         <div>
-          <Label className="text-sm font-medium text-foreground mb-2 block">Selecciona ubicación en el mapa</Label>
+          <Label className="text-sm font-medium text-foreground mb-2 block">Select a location on the map</Label>
           <MapSelector onLocationSelect={handleMapLocationSelect} searchLocation={searchTrigger} />
         </div>
 
         <div>
           <Label htmlFor="date" className="text-sm font-medium text-foreground mb-2 block">
-            Fecha del pronóstico (opcional)
+            Date of the pronostic (optional)
           </Label>
           <div className="relative">
             <Calendar className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
@@ -91,7 +91,7 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
               disabled={loading}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Selecciona cualquier fecha futura para ver el pronóstico</p>
+          <p className="text-xs text-muted-foreground mt-2">Select any future dato to observe the pronostic</p>
         </div>
 
         <Button
@@ -103,12 +103,12 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 md:w-5 md:h-5 mr-2 animate-spin" />
-              Buscando pronóstico...
+              Searching a forecast...
             </>
           ) : (
             <>
               <Search className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-              Buscar Pronóstico
+              Search a forecast
             </>
           )}
         </Button>

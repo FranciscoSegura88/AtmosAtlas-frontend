@@ -21,12 +21,12 @@ interface WeatherDisplayProps {
 
 export function WeatherDisplay({ data }: WeatherDisplayProps) {
   const handleDownloadJSON = () => {
-    const dataStr = JSON.stringify(data, null, 2)
+  const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: "application/json" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-    link.href = url
-    link.download = `clima-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "actual"}.json`
+  link.href = url
+  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -34,31 +34,31 @@ export function WeatherDisplay({ data }: WeatherDisplayProps) {
   }
 
   const handleDownloadText = () => {
-    const textContent = `
-PRONÓSTICO DEL CLIMA
-====================
+  const textContent = `
+WEATHER FORECAST
+================
 
-Ubicación: ${data.location}
-${data.date ? `Fecha: ${new Date(data.date).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" })}` : "Fecha: Actual"}
+Location: ${data.location}
+${data.date ? `Date: ${new Date(data.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}` : "Date: Current"}
 
-Temperatura: ${Math.round(data.temperature)}°C
-Condición: ${data.description}
+Temperature: ${Math.round(data.temperature)}°C
+Condition: ${data.description}
 
-DETALLES
---------
-Humedad: ${data.humidity}%
-Velocidad del viento: ${data.windSpeed} km/h
-Visibilidad: ${data.visibility} km
-Presión atmosférica: ${data.pressure} hPa
+DETAILS
+-------
+Humidity: ${data.humidity}%
+Wind speed: ${data.windSpeed} km/h
+Visibility: ${data.visibility} km
+Pressure: ${data.pressure} hPa
 
-Generado el: ${new Date().toLocaleString("es-ES")}
-    `.trim()
+Generated at: ${new Date().toLocaleString("en-US")}
+  `.trim()
 
     const dataBlob = new Blob([textContent], { type: "text/plain" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-    link.href = url
-    link.download = `clima-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "actual"}.txt`
+  link.href = url
+  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.txt`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -67,7 +67,7 @@ Generado el: ${new Date().toLocaleString("es-ES")}
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Tarjeta principal */}
+  {/* Main card */}
       <Card className="p-4 md:p-8 bg-card/80 backdrop-blur-sm border-2">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
           {/* Información principal */}
@@ -98,12 +98,12 @@ Generado el: ${new Date().toLocaleString("es-ES")}
         </div>
       </Card>
 
-      {/* Detalles adicionales */}
+  {/* Additional details */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
             <Droplets className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Humedad</span>
+            <span className="text-xs md:text-sm text-muted-foreground">Humidity</span>
           </div>
           <div className="text-2xl md:text-3xl font-bold text-foreground">{data.humidity}%</div>
         </Card>
@@ -111,7 +111,7 @@ Generado el: ${new Date().toLocaleString("es-ES")}
         <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
             <Wind className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Viento</span>
+            <span className="text-xs md:text-sm text-muted-foreground">Wind</span>
           </div>
           <div className="text-2xl md:text-3xl font-bold text-foreground">{data.windSpeed} km/h</div>
         </Card>
@@ -119,7 +119,7 @@ Generado el: ${new Date().toLocaleString("es-ES")}
         <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
             <Eye className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Visibilidad</span>
+            <span className="text-xs md:text-sm text-muted-foreground">Visibility</span>
           </div>
           <div className="text-2xl md:text-3xl font-bold text-foreground">{data.visibility} km</div>
         </Card>
@@ -127,15 +127,15 @@ Generado el: ${new Date().toLocaleString("es-ES")}
         <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
             <Gauge className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Presión</span>
+            <span className="text-xs md:text-sm text-muted-foreground">Pressure</span>
           </div>
           <div className="text-2xl md:text-3xl font-bold text-foreground">{data.pressure} hPa</div>
         </Card>
       </div>
 
-      {/* Descargar información */}
+  {/* Download information */}
       <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2">
-        <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Descargar información</h3>
+  <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Download information</h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             onClick={handleDownloadText}
@@ -143,7 +143,7 @@ Generado el: ${new Date().toLocaleString("es-ES")}
             className="flex-1 h-11 md:h-12 border-2 bg-transparent text-sm md:text-base"
           >
             <Download className="w-4 h-4 mr-2" />
-            Descargar como Texto
+            Download as Text
           </Button>
           <Button
             onClick={handleDownloadJSON}
@@ -151,7 +151,7 @@ Generado el: ${new Date().toLocaleString("es-ES")}
             className="flex-1 h-11 md:h-12 border-2 bg-transparent text-sm md:text-base"
           >
             <Download className="w-4 h-4 mr-2" />
-            Descargar como JSON
+            Download as JSON
           </Button>
         </div>
       </Card>
