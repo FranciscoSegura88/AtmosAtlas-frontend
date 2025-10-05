@@ -3,10 +3,11 @@
 import { useState } from "react"
 import { SearchBar } from "@/components/search-bar"
 import { WeatherDisplay } from "@/components/weather-display"
+import type { WeatherData } from "@/types/weather"
 import { Cloud, Sun } from "lucide-react"
 
 export default function Home() {
-  const [weatherData, setWeatherData] = useState<any>(null)
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleSearch = async (location: string, date: string) => {
