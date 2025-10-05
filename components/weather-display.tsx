@@ -3,30 +3,22 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { WeatherAnimation } from "@/components/weather-animation"
+import { BackendForecastInsights } from "@/components/backend-forecast-insights"
+import type { WeatherData } from "@/types/weather"
 import { Droplets, Wind, Eye, Gauge, Download, Calendar } from "lucide-react"
 
 interface WeatherDisplayProps {
-  data: {
-    location: string
-    temperature: number
-    condition: string
-    humidity: number
-    windSpeed: number
-    visibility: number
-    pressure: number
-    description: string
-    date?: string
-  }
+  data: WeatherData
 }
 
 export function WeatherDisplay({ data }: WeatherDisplayProps) {
   const handleDownloadJSON = () => {
-  const dataStr = JSON.stringify(data, null, 2)
+    const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: "application/json" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-  link.href = url
-  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.json`
+    link.href = url
+    link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -34,12 +26,16 @@ export function WeatherDisplay({ data }: WeatherDisplayProps) {
   }
 
   const handleDownloadText = () => {
-  const textContent = `
+    const textContent = `
 WEATHER FORECAST
 ================
 
 Location: ${data.location}
-${data.date ? `Date: ${new Date(data.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}` : "Date: Current"}
+${
+  data.date
+    ? `Date: ${new Date(data.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`
+    : "Date: Current"
+}
 
 Temperature: ${Math.round(data.temperature)}°C
 Condition: ${data.description}
@@ -51,14 +47,37 @@ Wind speed: ${data.windSpeed} km/h
 Visibility: ${data.visibility} km
 Pressure: ${data.pressure} hPa
 
+${
+  data.backendSummary
+    ? `MACHINE LEARNING INSIGHTS
+------------------------
+Precipitation (ensemble): ${data.backendSummary.ml_precipitation_mm.prediction_mm} mm ± ${data.backendSummary.ml_precipitation_mm.uncertainty_mm}
+Rain probability: ${(data.backendSummary.ml_rain_probability.probability * 100).toFixed(1)}%
+Confidence level: ${data.backendSummary.ml_rain_probability.confidence_level}
+
+`
+    : ""
+}
+
+${
+  data.riskScores && data.riskScores.length
+    ? `CONDITION RISKS
+----------------
+${data.riskScores
+        .map((risk) => `${risk.label}: ${(risk.probability * 100).toFixed(0)}% - ${risk.description}`)
+        .join("\n")}
+`
+    : ""
+}
+
 Generated at: ${new Date().toLocaleString("en-US")}
   `.trim()
 
     const dataBlob = new Blob([textContent], { type: "text/plain" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-  link.href = url
-  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.txt`
+    link.href = url
+    link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.txt`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -67,7 +86,7 @@ Generated at: ${new Date().toLocaleString("en-US")}
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-  {/* Main card */}
+      {/* Main card */}
       <Card className="p-4 md:p-8 bg-card/80 backdrop-blur-sm border-2">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
           {/* Información principal */}
@@ -98,7 +117,7 @@ Generated at: ${new Date().toLocaleString("en-US")}
         </div>
       </Card>
 
-  {/* Additional details */}
+      {/* Additional details */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
@@ -133,9 +152,14 @@ Generated at: ${new Date().toLocaleString("en-US")}
         </Card>
       </div>
 
-  {/* Download information */}
+      {/* Backend analytics */}
+      {data.backendSummary && (
+        <BackendForecastInsights summary={data.backendSummary} riskScores={data.riskScores} />
+      )}
+
+      {/* Download information */}
       <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2">
-  <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Download information</h3>
+        <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Download information</h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             onClick={handleDownloadText}
