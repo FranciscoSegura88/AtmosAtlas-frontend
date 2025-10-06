@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const BACKEND_ANALYZE_URL = process.env.BACKEND_ANALYZE_URL ?? "http://127.0.0.1:8000/analyze"
-
 interface Coordinates {
   lat: number
   lon: number
@@ -22,39 +20,6 @@ function deriveCoordinates(location: string): Coordinates {
   const lon = (((hash / 18000) % 36000) / 100 - 180).toFixed(2)
 
   return { lat: Number(lat), lon: Number(lon) }
-}
-
-async function fetchBackendSummary(lat: number, lon: number, targetDate: string) {
-  const url = new URL(BACKEND_ANALYZE_URL)
-  url.searchParams.set("lat", lat.toString())
-  url.searchParams.set("lon", lon.toString())
-  url.searchParams.set("target_date", targetDate)
-
-  const response = await fetch(url.toString(), { cache: "no-store" })
-
-  if (!response.ok) {
-    throw new Error(`Backend analyze endpoint responded with ${response.status}`)
-  }
-
-  return response.json()
-}
-
-async function resolveBackendSummary(
-  coordinates: Coordinates | null,
-  targetDate: string,
-  fallbackSummary: ReturnType<typeof generateMlInsights>,
-) {
-  if (!coordinates) {
-    return fallbackSummary
-  }
-
-  try {
-    const summary = await fetchBackendSummary(coordinates.lat, coordinates.lon, targetDate)
-    return summary
-  } catch (error) {
-    console.error("[v0] Error fetching backend summary:", error)
-    return fallbackSummary
-  }
 }
 
 function easeClamp(value: number, min = 0, max = 1) {
@@ -185,7 +150,7 @@ function generateMlInsights(
   }
 }
 
-function generateFutureWeatherData(location: string, date: string, coordinatesOverride?: Coordinates) {
+function generateFutureWeatherData(location: string, date: string) {
   // Use the date as a seed to generate consistent data
   const dateObj = new Date(date)
   const dayOfYear = Math.floor((dateObj.getTime() - new Date(dateObj.getFullYear(), 0, 0).getTime()) / 86400000)
@@ -211,7 +176,7 @@ function generateFutureWeatherData(location: string, date: string, coordinatesOv
   const conditionIndex = seed % conditions.length
   const condition = conditions[conditionIndex]
 
-  const coordinates = coordinatesOverride ?? deriveCoordinates(location)
+  const coordinates = deriveCoordinates(location)
 
   const baseWeather = {
     location: location,
@@ -305,27 +270,22 @@ export async function GET(request: NextRequest) {
       description: data.weather[0].description,
     }
 
-    const coordinates = requestedCoordinates
-      ?? (data.coord
-        ? { lat: Number(data.coord.lat.toFixed(2)), lon: Number(data.coord.lon.toFixed(2)) }
-        : deriveCoordinates(baseResponse.location))
+    const coordinates = data.coord
+      ? { lat: Number(data.coord.lat.toFixed(2)), lon: Number(data.coord.lon.toFixed(2)) }
+      : deriveCoordinates(baseResponse.location)
 
-    const seed = hashStringToNumber(`${baseResponse.location}-${targetDate}`)
-    const fallbackSummary = generateMlInsights(
-      seed,
-      coordinates,
-      targetDate,
-      baseResponse.temperature,
-      baseResponse.humidity,
-      baseResponse.windSpeed,
-    )
-
-    const backendSummary = await resolveBackendSummary(coordinates, targetDate, fallbackSummary)
+    const seed = hashStringToNumber(`${baseResponse.location}-${Date.now()}`)
 
     return NextResponse.json({
       ...baseResponse,
-      date: targetDate,
-      backendSummary,
+      backendSummary: generateMlInsights(
+        seed,
+        coordinates,
+        new Date().toISOString().split("T")[0],
+        baseResponse.temperature,
+        baseResponse.humidity,
+        baseResponse.windSpeed,
+      ),
       riskScores: generateRiskScores(baseResponse.temperature, baseResponse.windSpeed, baseResponse.humidity),
     })
   } catch (error) {
@@ -343,23 +303,19 @@ export async function GET(request: NextRequest) {
       description: "clear sky",
     }
 
-    const coordinates = requestedCoordinates ?? deriveCoordinates(location)
-    const seed = hashStringToNumber(`${location}-${targetDate}`)
-    const fallbackSummary = generateMlInsights(
-      seed,
-      coordinates,
-      targetDate,
-      fallback.temperature,
-      fallback.humidity,
-      fallback.windSpeed,
-    )
-
-    const backendSummary = await resolveBackendSummary(coordinates, targetDate, fallbackSummary)
+    const coordinates = deriveCoordinates(location)
+    const seed = hashStringToNumber(`${location}-fallback`)
 
     return NextResponse.json({
       ...fallback,
-      date: targetDate,
-      backendSummary,
+      backendSummary: generateMlInsights(
+        seed,
+        coordinates,
+        new Date().toISOString().split("T")[0],
+        fallback.temperature,
+        fallback.humidity,
+        fallback.windSpeed,
+      ),
       riskScores: generateRiskScores(fallback.temperature, fallback.windSpeed, fallback.humidity),
     })
   }
