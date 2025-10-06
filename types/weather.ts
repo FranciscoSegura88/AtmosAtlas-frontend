@@ -1,3 +1,11 @@
+export interface LocationData {
+  lat: number
+  lng: number
+  name: string
+  country?: string
+  timezone?: string | number
+}
+
 export interface BackendSummary {
   prediction_for: string
   location: {
