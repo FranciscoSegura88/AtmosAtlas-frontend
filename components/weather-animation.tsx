@@ -1,18 +1,20 @@
+// components/weather-animation.tsx
 "use client"
 
 import { Cloud, CloudRain, Sun, Droplets, Wind } from "lucide-react"
 
 interface WeatherAnimationProps {
-  condition: string
-  humidity: number
+  condition?: string | null
+  humidity?: number | null
 }
 
 export function WeatherAnimation({ condition, humidity }: WeatherAnimationProps) {
-  const getAnimation = () => {
-    const lowerCondition = condition.toLowerCase()
+  const lower = String(condition ?? "").toLowerCase().trim()
+  const hRaw = Number(humidity)
+  const h = Number.isFinite(hRaw) ? Math.min(100, Math.max(0, hRaw)) : 0
 
-    // Lluvia
-    if (lowerCondition.includes("rain") || lowerCondition.includes("drizzle")) {
+  const render = () => {
+    if (lower.includes("rain") || lower.includes("drizzle")) {
       return (
         <div className="relative w-48 h-48">
           <CloudRain className="w-48 h-48 text-primary animate-float" />
@@ -20,30 +22,25 @@ export function WeatherAnimation({ condition, humidity }: WeatherAnimationProps)
             <div
               key={i}
               className="absolute w-1 h-8 bg-primary/60 rounded-full animate-rain"
-              style={{
-                left: `${20 + i * 15}%`,
-                animationDelay: `${i * 0.2}s`,
-              }}
+              style={{ left: `${20 + i * 15}%`, animationDelay: `${i * 0.2}s` }}
             />
           ))}
         </div>
       )
     }
 
-    // Nublado o húmedo
-    if (lowerCondition.includes("cloud") || humidity > 70) {
+    if (lower.includes("cloud") || h > 70) {
       return (
         <div className="relative w-48 h-48">
           <Cloud className="w-48 h-48 text-primary animate-float" />
-          {humidity > 70 && (
+          {h > 70 && (
             <Droplets className="absolute bottom-8 left-1/2 -translate-x-1/2 w-12 h-12 text-accent animate-humidity" />
           )}
         </div>
       )
     }
 
-    // Soleado o despejado
-    if (lowerCondition.includes("clear") || lowerCondition.includes("sun")) {
+    if (lower.includes("clear") || lower.includes("sun")) {
       return (
         <div className="relative w-48 h-48">
           <Sun className="w-48 h-48 text-secondary animate-sunny" />
@@ -52,8 +49,7 @@ export function WeatherAnimation({ condition, humidity }: WeatherAnimationProps)
       )
     }
 
-    // Seco (baja humedad)
-    if (humidity < 30) {
+    if (h < 30) {
       return (
         <div className="relative w-48 h-48">
           <Sun className="w-48 h-48 text-secondary animate-sunny" />
@@ -62,7 +58,6 @@ export function WeatherAnimation({ condition, humidity }: WeatherAnimationProps)
       )
     }
 
-    // Por defecto - nublado
     return (
       <div className="relative w-48 h-48">
         <Cloud className="w-48 h-48 text-primary animate-float" />
@@ -70,5 +65,5 @@ export function WeatherAnimation({ condition, humidity }: WeatherAnimationProps)
     )
   }
 
-  return <div className="flex items-center justify-center p-8">{getAnimation()}</div>
+  return <div className="flex items-center justify-center p-8">{render()}</div>
 }

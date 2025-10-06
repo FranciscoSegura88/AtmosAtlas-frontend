@@ -1,0 +1,22 @@
+// lib/strings.ts
+export const STR = {
+  title: "Weather Forecast",
+  subtitle: "Discover the weather for any location in the world, today or in the future.",
+  details: "Details",
+  condition: "Condition",
+  temperature: "Temperature",
+  humidity: "Humidity",
+  wind: "Wind",
+  visibility: "Visibility",
+  pressure: "Pressure",
+  mlForecast: "Machine learning forecast",
+  ensembleBreakdown: "Ensemble breakdown",
+  ensemblePrecip: "Ensemble precipitation",
+  rainProb: "Rain probability",
+  confidence: "confidence",
+  modelAgreement: "Model agreement",
+  regWeights: "Regression ensemble weights",
+  clsWeights: "Classification ensemble weights",
+  riskOutlook: "Condition risk outlook",
+  generatedAt: "Generated at",
+}
