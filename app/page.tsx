@@ -3,20 +3,27 @@
 import { useState } from "react"
 import { SearchBar } from "@/components/search-bar"
 import { WeatherDisplay } from "@/components/weather-display"
+import type { WeatherData } from "@/types/weather"
 import { Cloud, Sun } from "lucide-react"
 
 export default function Home() {
-  const [weatherData, setWeatherData] = useState<any>(null)
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSearch = async (location: string, date: string) => {
+  const handleSearch = async ({ location, date, coordinates }: { location: string; date: string; coordinates: { lat: number; lng: number } }) => {
     setLoading(true)
     try {
-      const url = date
-        ? `/api/weather?location=${encodeURIComponent(location)}&date=${encodeURIComponent(date)}`
-        : `/api/weather?location=${encodeURIComponent(location)}`
+      const params = new URLSearchParams({
+        location,
+        lat: coordinates.lat.toString(),
+        lon: coordinates.lng.toString(),
+      })
 
-      const response = await fetch(url)
+      if (date) {
+        params.set("date", date)
+      }
+
+      const response = await fetch(`/api/weather?${params.toString()}`)
       const data = await response.json()
       setWeatherData(data)
     } catch (error) {
