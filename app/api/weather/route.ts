@@ -201,15 +201,40 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const location = searchParams.get("location")
   const date = searchParams.get("date")
+  const latParam = searchParams.get("lat")
+  const lonParam = searchParams.get("lon")
 
   if (!location) {
     return NextResponse.json({ error: "Location is required" }, { status: 400 })
   }
 
+  const lat = latParam ? Number.parseFloat(latParam) : undefined
+  const lon = lonParam ? Number.parseFloat(lonParam) : undefined
+
+  if ((latParam && Number.isNaN(lat)) || (lonParam && Number.isNaN(lon))) {
+    return NextResponse.json({ error: "Latitude and longitude must be valid numbers" }, { status: 400 })
+  }
+
+  if (date && (lat === undefined || lon === undefined)) {
+    return NextResponse.json(
+      { error: "Latitude and longitude are required when requesting a forecast date" },
+      { status: 400 },
+    )
+  }
+
+  const targetDate = date ?? new Date().toISOString().split("T")[0]
+
+  const requestedCoordinates = lat !== undefined && lon !== undefined ? { lat, lon } : null
+
   try {
     if (date) {
-      const futureData = generateFutureWeatherData(location, date)
-      return NextResponse.json(futureData)
+      const futureData = generateFutureWeatherData(location, targetDate, requestedCoordinates ?? undefined)
+      const backendSummary = await resolveBackendSummary(requestedCoordinates, targetDate, futureData.backendSummary)
+
+      return NextResponse.json({
+        ...futureData,
+        backendSummary,
+      })
     }
 
   // If there is no date, use the OpenWeatherMap API for current data

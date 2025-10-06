@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { MapSelector } from "./map-selector"
 
 interface SearchBarProps {
-  onSearch: (location: string, date: string) => void
+  onSearch: (params: { location: string; date: string; coordinates: { lat: number; lng: number } }) => void
   loading?: boolean
 }
 
@@ -19,17 +19,27 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
   const [date, setDate] = useState("")
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
   const [searchTrigger, setSearchTrigger] = useState<string>("")
+  const [showCoordinateWarning, setShowCoordinateWarning] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (location.trim()) {
-      onSearch(location.trim(), date)
+    if (!location.trim()) {
+      return
     }
+
+    if (!coordinates) {
+      setShowCoordinateWarning(true)
+      return
+    }
+
+    setShowCoordinateWarning(false)
+    onSearch({ location: location.trim(), date, coordinates })
   }
 
   const handleMapLocationSelect = (locationName: string, lat: number, lng: number) => {
     setLocation(locationName)
     setCoordinates({ lat, lng })
+    setShowCoordinateWarning(false)
   }
 
   useEffect(() => {
@@ -73,6 +83,9 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
         <div>
           <Label className="text-sm font-medium text-foreground mb-2 block">Select a location on the map</Label>
           <MapSelector onLocationSelect={handleMapLocationSelect} searchLocation={searchTrigger} />
+          {showCoordinateWarning && (
+            <p className="text-xs text-destructive mt-2">Please select a point on the map to obtain coordinates.</p>
+          )}
         </div>
 
         <div>
