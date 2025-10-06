@@ -7,9 +7,19 @@ import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Weather Forecast",
-  description: "Discover the weather for any location in the world",
-  generator: "v0.app",
+  title: "AtmosAtlas - Historical Climate Risk Intelligence",
+  description: "Not a weather forecast, it's a forecast of the past. Analyze decades of NASA climate data to plan your future events with confidence.",
+  generator: "AtmosAtlas",
+  icons: {
+    icon: '/atmosatlaslogobuscador.png',
+    shortcut: '/atmosatlaslogobuscador.png',
+    apple: '/atmosatlaslogobuscador.png',
+  },
+  openGraph: {
+    title: "AtmosAtlas - Historical Climate Risk Intelligence",
+    description: "Plan your outdoor events with confidence using 40+ years of NASA climate data",
+    images: ['/atmosatlaslogo.png'],
+  },
 }
 
 export default function RootLayout({
