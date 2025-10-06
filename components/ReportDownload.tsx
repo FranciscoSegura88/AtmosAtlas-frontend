@@ -1,16 +1,19 @@
 // components/ReportDownload.tsx
 "use client"
 
-import { fmtDateISO, fmtNumber, fmtPercent } from "@/lib/format"
+import { fmtDateLocalYMD, fmtNumber, fmtPercent } from "@/lib/format"
 import { STR } from "@/lib/strings"
 
 function buildReportText(data: any) {
+  const sum = data?.backendSummary
+  const rich = data?.backendSummaryRich
+
   const lines: string[] = []
   lines.push("WEATHER FORECAST")
   lines.push("===============")
   lines.push("")
   lines.push(`Location: ${data?.location ?? "—"}`)
-  lines.push(`Date: ${fmtDateISO(data?.date, "en-US")}`)
+  lines.push(`Date: ${fmtDateLocalYMD(data?.date, "en-US")}`)
   lines.push("")
 
   if (Number.isFinite(Number(data?.temperature))) lines.push(`Temperature: ${Number(data.temperature)}°C`)
@@ -26,32 +29,25 @@ function buildReportText(data: any) {
   lines.push("MACHINE LEARNING INSIGHTS")
   lines.push("------------------------")
 
-  const sum = data?.backendSummary
-  const rich = data?.backendSummaryRich
-  if (sum?.ml_precipitation_mm) {
-    const ci = sum.ml_precipitation_mm.confidence_interval_mm
-    lines.push(
-      `Precipitation (ensemble): ${fmtNumber(sum.ml_precipitation_mm.prediction_mm, 3)} mm ± ` +
-      `${fmtNumber(sum.ml_precipitation_mm.uncertainty_mm, 3)}`
-    )
-    if (ci) {
-      lines.push(`95% CI: ${fmtNumber(ci.lower, 3)} – ${fmtNumber(ci.upper, 3)} mm`)
-    }
-  }
-
-  // probability: use final weighted if present
   const pFinal = Number(rich?.probabilities?.final_weighted)
   const pAdv = Number(sum?.ml_rain_probability?.probability)
   const usedP = Number.isFinite(pFinal) ? pFinal : pAdv
-  const conf = String(
-    rich?.probabilities?.final_confidence ??
-    sum?.ml_rain_probability?.confidence_level ?? "medium"
-  )
+  const conf =
+    String(rich?.probabilities?.final_confidence ??
+      sum?.ml_rain_probability?.confidence_level ?? "medium")
+
+  const mm = Number(sum?.ml_precipitation_mm?.prediction_mm ?? 0)
+  const ciLo = Number(sum?.ml_precipitation_mm?.confidence_interval_mm?.lower ?? 0)
+  const ciHi = Number(sum?.ml_precipitation_mm?.confidence_interval_mm?.upper ?? 0)
+  const unc = Number(sum?.ml_precipitation_mm?.uncertainty_mm ?? 0)
+
+  lines.push(`Precipitation (ensemble): ${fmtNumber(mm, 3)} mm ± ${fmtNumber(unc, 3)}`)
   lines.push(`Rain probability: ${fmtPercent(usedP, 1)}`)
   lines.push(`Confidence level: ${conf}`)
   lines.push("")
 
   if (Array.isArray(data?.riskScores)) {
+    lines.push("")
     lines.push("CONDITION RISKS")
     lines.push("----------------")
     for (const r of data.riskScores) {

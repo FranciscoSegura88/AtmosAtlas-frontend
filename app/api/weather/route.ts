@@ -55,26 +55,7 @@ function generateRiskScoresFromBackend(advProb: number, stat?: any, expl?: any) 
 const ATMOS_BACKEND_URL = process.env.ATMOS_BACKEND_URL || process.env.NEXT_PUBLIC_ATMOS_BACKEND_URL || ""
 const ATMOS_USE_MULTISOURCE = (process.env.ATMOS_USE_MULTISOURCE ?? "true").toLowerCase() === "true"
 
-// Geocode via OpenWeather if key exists; otherwise fall back to hash
-async function geocodeIfPossible(locationText: string, fallback: Coordinates): Promise<Coordinates> {
-  try {
-    const key = process.env.OPENWEATHER_API_KEY
-    if (!key) return fallback
-    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(locationText)}&limit=1&appid=${key}`
-    const res = await fetch(url, { cache: "no-store" })
-    if (!res.ok) return fallback
-    const arr = (await res.json()) as Array<{ lat: number; lon: number }>
-    if (arr && arr.length > 0 && typeof arr[0].lat === "number" && typeof arr[0].lon === "number") {
-      return { lat: arr[0].lat, lon: arr[0].lon }
-    }
-    return fallback
-  } catch {
-    return fallback
-  }
-}
-
 function normalizedEndDate(targetDate: string) {
-  // Backend requires target_date > end_date (historical)
   const y = Number(targetDate.slice(0, 4))
   const endYear = Math.min(y - 1, 2024)
   return `${endYear}-12-31`
@@ -116,7 +97,7 @@ async function callBackend(coords: Coordinates, targetDate: string, opts: FetchO
   }
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
+  const timeout = setTimeout(() => controller.abort(), 60_000)
 
   const res = await fetch(url, {
     method: "POST",
@@ -133,7 +114,6 @@ async function callBackend(coords: Coordinates, targetDate: string, opts: FetchO
   try {
     return JSON.parse(text)
   } catch {
-    // If backend returns valid JSON with BOM/extra whitespace
     return JSON.parse(text.trim())
   }
 }
@@ -150,16 +130,14 @@ async function fetchBackendAdvanced(coords: Coordinates, targetDate: string) {
       msg.includes("nan")
 
     if (shouldRetryWithoutML) {
-      // Graceful retry: disable ML to keep UI responsive
       return await callBackend(coords, targetDate, { useML: false })
     }
     throw e
   }
 }
 
-// ---------------- Mappers ----------------
+// ---------------- Mapping ----------------
 
-/** Detailed ml_advanced summary (models, weights, mm CI, fused prob) */
 function mapBackendToFrontendSummary(api: any) {
   const loc = api?.location ?? {}
   const backLat = Number(loc.latitude ?? loc.lat ?? 0)
@@ -207,7 +185,6 @@ function mapBackendToFrontendSummary(api: any) {
   }
 }
 
-/** Rich summary: mirrors CLI (stats/basic/advanced/final, explainability, coverage, quality) */
 function buildRichBackendSummary(api: any) {
   const final   = api?.final_recommendation ?? {}
   const stats   = api?.statistics ?? {}
@@ -218,11 +195,11 @@ function buildRichBackendSummary(api: any) {
   const cov     = api?.data_coverage ?? {}
   const dq      = api?.data_quality ?? {}
 
-  const prob_stat   = pickNumber(stats?.rain_probability, 0)
-  const prob_basic  = pickNumber(basic?.prediction?.ensemble_prob, 0)
-  const prob_adv    = pickNumber(adv?.rain_probability_fused, 0)
+  const prob_stat   = Number(stats?.rain_probability ?? 0)
+  const prob_basic  = Number(basic?.prediction?.ensemble_prob ?? 0)
+  const prob_adv    = Number(adv?.rain_probability_fused ?? 0)
   const will_rain   = !!final?.will_rain
-  const final_prob  = pickNumber(final?.probability, Math.max(prob_adv, prob_basic, prob_stat))
+  const final_prob  = Number.isFinite(Number(final?.probability)) ? Number(final?.probability) : Math.max(prob_adv, prob_basic, prob_stat)
   const confidence  = String(final?.confidence ?? adv?.confidence_level ?? "medium")
 
   return {
@@ -247,57 +224,39 @@ function buildRichBackendSummary(api: any) {
       n_years: cov?.n_years ?? null,
     },
     data_quality: {
-      reliability_score: pickNumber(dq?.reliability?.overall_score, NaN),
+      reliability_score: Number(dq?.reliability?.overall_score ?? NaN),
     },
   }
 }
 
-/** Derive UI “showcase” fields from backend (avoid undefined) */
 function deriveShowcaseFromBackend(api: any) {
   const stats = api?.statistics ?? {}
   const expl = api?.explainability ?? {}
 
-  // Humidity (%) from summaries
-  const rh = Number(
-    expl?.recent_summary?.rh2m_mean_pct ?? expl?.climatology_summary?.rh2m_mean_pct ?? NaN
-  )
+  const rh = Number(expl?.recent_summary?.rh2m_mean_pct ?? expl?.climatology_summary?.rh2m_mean_pct ?? NaN)
   const humidity = Number.isFinite(rh) ? Math.round(rh) : undefined
 
-  // Wind: m/s -> km/h
-  const windMs = Number(
-    expl?.recent_summary?.wind_mean_ms ?? expl?.climatology_summary?.wind_mean_ms ?? NaN
-  )
+  const windMs = Number(expl?.recent_summary?.wind_mean_ms ?? expl?.climatology_summary?.wind_mean_ms ?? NaN)
   const windSpeed = Number.isFinite(windMs) ? Math.round(windMs * 3.6) : undefined
 
-  // Pressure: kPa -> hPa
-  const psKpa = Number(
-    expl?.recent_summary?.ps_mean_kpa ?? expl?.climatology_summary?.ps_mean_kpa ?? NaN
-  )
+  const psKpa = Number(expl?.recent_summary?.ps_mean_kpa ?? expl?.climatology_summary?.ps_mean_kpa ?? NaN)
   const pressure = Number.isFinite(psKpa) ? Math.round(psKpa * 10) : undefined
 
-  // Temperature (°C): prefer statistics; fallback to explainability
   const tFromStats = Number(stats?.temperature?.avg_temp_c ?? stats?.temperature?.mean_c ?? NaN)
-  const tFromExpl = Number(
-    expl?.recent_summary?.t2m_mean_c ?? expl?.climatology_summary?.t2m_mean_c ?? NaN
-  )
-  const temperature = Number.isFinite(tFromStats)
-    ? Math.round(tFromStats)
-    : Number.isFinite(tFromExpl)
-    ? Math.round(tFromExpl)
-    : undefined
+  const tFromExpl = Number(expl?.recent_summary?.t2m_mean_c ?? expl?.climatology_summary?.t2m_mean_c ?? NaN)
+  const temperature = Number.isFinite(tFromStats) ? Math.round(tFromStats) : (Number.isFinite(tFromExpl) ? Math.round(tFromExpl) : undefined)
 
   return { humidity, windSpeed, pressure, temperature }
 }
 
 function inferCondition(probFinalWeighted: number, humidity?: number, mm?: number) {
-  // Simple, robust heuristic for display:
   if ((mm ?? 0) >= 0.5 || probFinalWeighted >= 0.6) return "Rain"
   if (probFinalWeighted >= 0.35 && (humidity ?? 0) >= 70) return "Drizzle"
   if ((humidity ?? 0) >= 75) return "Clouds"
   return "Clear"
 }
 
-// ---------------- HTTP handler ----------------
+// ---------------- Handler ----------------
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -316,53 +275,36 @@ export async function GET(request: NextRequest) {
   const targetDate = dateParam ?? new Date().toISOString().split("T")[0]
   const locationText = locationParam || `${lat!.toFixed(2)}, ${lon!.toFixed(2)}`
 
-  // Coordinates: prioritize query lat/lon → geocoding → hash fallback
   const fallback = lat !== undefined && lon !== undefined ? { lat, lon } : deriveCoordinates(locationText)
   const coords: Coordinates =
     lat !== undefined && lon !== undefined
       ? { lat, lon }
-      : await geocodeIfPossible(locationText, fallback)
+      : fallback  // geocoding opcional: si quieres OpenWeather, añade aquí la función que ya tenías
 
   try {
-    // 1) Backend (with graceful retry)
     const api = await fetchBackendAdvanced(coords, targetDate)
+    const backendSummary = mapBackendToFrontendSummary(api)
+    const backendSummaryRich = buildRichBackendSummary(api)
 
-    // 2) Mappings
-    const backendSummary = mapBackendToFrontendSummary(api)      // detailed ml_advanced
-    const backendSummaryRich = buildRichBackendSummary(api)      // CLI-style rich block
-    const advProb = Number(backendSummary?.ml_rain_probability?.probability ?? 0)
-    const mm = Number(backendSummary?.ml_precipitation_mm?.prediction_mm ?? 0)
-
-    // 3) UI showcase (no undefined)
     const { humidity, windSpeed, pressure, temperature } = deriveShowcaseFromBackend(api)
     const probFinal = backendSummaryRich.probabilities.final_weighted
-    const condition = inferCondition(probFinal, humidity, mm) || "Clear"
+    const mm = Number(backendSummary?.ml_precipitation_mm?.prediction_mm ?? 0)
+    const condition = inferCondition(probFinal, humidity, mm)
 
-    // 4) Risk outlook
-    const riskScores = generateRiskScoresFromBackend(
-      Number.isFinite(Number(probFinal)) ? Number(probFinal) : advProb,
-      api?.statistics,
-      api?.explainability
-    )
+    const riskScores = generateRiskScoresFromBackend(probFinal || Number(backendSummary?.ml_rain_probability?.probability ?? 0), api?.statistics, api?.explainability)
 
-    // 5) Response
     return NextResponse.json({
-      // meta
       location: `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`,
       date: targetDate,
 
-      // showcase (only if defined)
       ...(Number.isFinite(Number(temperature)) ? { temperature: Number(temperature) } : {}),
       ...(condition ? { condition } : {}),
       ...(Number.isFinite(Number(humidity)) ? { humidity: Number(humidity) } : {}),
       ...(Number.isFinite(Number(windSpeed)) ? { windSpeed: Number(windSpeed) } : {}),
       ...(Number.isFinite(Number(pressure)) ? { pressure: Number(pressure) } : {}),
 
-      // backend payloads
-      backendSummary,         // detailed advanced_ml (mm/probs/weights/individuals)
-      backendSummaryRich,     // stats/basic/advanced/final + explainability + coverage + quality
-
-      // risks
+      backendSummary,
+      backendSummaryRich,
       riskScores,
     })
   } catch (error) {

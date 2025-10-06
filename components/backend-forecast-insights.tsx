@@ -2,7 +2,6 @@
 
 import { Card } from "@/components/ui/card"
 import { AnimatedNumber } from "@/components/animated-number"
-import { Activity, Droplets, MapPin } from "lucide-react"
 import type { BackendSummary, ConditionRisk } from "@/types/weather"
 import {
   ResponsiveContainer,
@@ -16,226 +15,144 @@ import {
   Bar,
   Cell,
 } from "recharts"
+import { fmtDateLocalYMD, fmtNumber, fmtPercent, clamp01 } from "@/lib/format"
 
 interface BackendForecastInsightsProps {
   summary: BackendSummary
   riskScores?: ConditionRisk[]
+  finalWeighted?: number
+  finalConfidence?: string
 }
 
 const probabilityColors = ["#38bdf8", "#1e40af"]
 const precipitationColors = ["#22c55e", "#16a34a", "#15803d", "#0f766e", "#0ea5e9", "#1d4ed8"]
 const weightColors = ["#fb7185", "#f97316", "#facc15", "#34d399", "#38bdf8"]
 
-const formatPercent = (value: number) => `${(value * 100).toFixed(0)}%`
+export function BackendForecastInsights({ summary, riskScores, finalWeighted, finalConfidence }: BackendForecastInsightsProps) {
+  const usedP = Number.isFinite(Number(finalWeighted))
+    ? Number(finalWeighted)
+    : Number(summary?.ml_rain_probability?.probability ?? 0)
 
-export function BackendForecastInsights({ summary, riskScores }: BackendForecastInsightsProps) {
-  const probabilityPercent = Number((summary.ml_rain_probability.probability * 100).toFixed(1))
+  const confidence = String(finalConfidence ?? summary?.ml_rain_probability?.confidence_level ?? "medium")
 
-  const precipitationModels = Object.entries(summary.ml_precipitation_mm.individual_predictions_mm).map(
-    ([model, value]) => ({
-      model: model.toUpperCase(),
-      value,
-    }),
-  )
+  const radialData = [{ name: "rain", value: Math.round(clamp01(usedP) * 100) }]
 
-  const regressionWeights = Object.entries(summary.ml_precipitation_mm.ensemble_weights_reg).map(([model, value]) => ({
-    model: model.toUpperCase(),
-    value,
-  }))
+  const ind = summary?.ml_precipitation_mm?.individual_predictions_mm ?? {}
+  const regData = Object.keys(ind).map((k) => {
+    const raw = Number(ind[k] ?? 0)
+    const mm = Math.max(0, Number.isFinite(raw) ? raw : 0)
+    const pretty = Number(fmtNumber(mm, 2)) // esto evita "-0.0"
+    return { name: k.toUpperCase(), mm: pretty }
+  })
 
-  const probabilityModels = Object.entries(summary.ml_rain_probability.individual_probabilities).map(([model, value]) => ({
-    model: model.toUpperCase(),
-    value,
-  }))
-
-  const classificationWeights = Object.entries(summary.ml_rain_probability.ensemble_weights_cls).map(([model, value]) => ({
-    model: model.toUpperCase(),
-    value,
-  }))
+  const wReg = summary?.ml_precipitation_mm?.ensemble_weights_reg ?? {}
+  const wCls = summary?.ml_rain_probability?.ensemble_weights_cls ?? {}
+  const weightsReg = Object.keys(wReg).map((k) => ({ name: k.toUpperCase(), w: Number(wReg[k] ?? 0) }))
+  const weightsCls = Object.keys(wCls).map((k) => ({ name: k.toUpperCase(), w: Number(wCls[k] ?? 0) }))
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <Card className="p-4 md:p-6 bg-card/80 border-2 overflow-hidden">
-        <div className="flex flex-col gap-4 md:gap-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h3 className="text-lg md:text-xl font-semibold text-foreground">Machine learning forecast</h3>
-              <p className="text-sm text-muted-foreground">
-                Ensemble breakdown for {new Date(summary.prediction_for).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-              </p>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold">Machine learning forecast</h3>
+        <p className="text-sm text-muted-foreground">
+          Ensemble breakdown for {fmtDateLocalYMD(summary?.prediction_for)}
+        </p>
+      </div>
+
+      {/* Probability radial */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Rain probability</p>
+            <div className="text-3xl font-bold">
+              <AnimatedNumber value={radialData[0].value} />%
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span>
-                {summary.location.lat.toFixed(2)}, {summary.location.lon.toFixed(2)}
-              </span>
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">Confidence: {confidence}</p>
           </div>
-
-          <div className="grid gap-4 md:gap-6 md:grid-cols-3">
-            <Card className="p-4 bg-primary/5 border-primary/40">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Droplets className="w-5 h-5 text-primary" />
-                  <span className="text-sm font-medium text-primary">Ensemble precipitation</span>
-                </div>
-                <span className="text-xs uppercase tracking-wide text-primary/70">mm</span>
-              </div>
-              <div className="text-3xl font-semibold text-foreground">
-                <AnimatedNumber value={summary.ml_precipitation_mm.prediction_mm} decimals={1} />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                ± <AnimatedNumber value={summary.ml_precipitation_mm.uncertainty_mm} decimals={1} /> mm (95% CI {summary.ml_precipitation_mm.confidence_interval_mm.lower.toFixed(1)} -
-                {" "}
-                {summary.ml_precipitation_mm.confidence_interval_mm.upper.toFixed(1)} mm)
-              </p>
-              <div className="mt-4 space-y-2">
-                {precipitationModels.map((model, index) => (
-                  <div key={model.model} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                      <span>{model.model}</span>
-                      <span>{model.value.toFixed(1)} mm</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: `${Math.min(Math.max((model.value / Math.max(summary.ml_precipitation_mm.confidence_interval_mm.upper, 1)) * 100, 4), 100)}%`,
-                          backgroundColor: precipitationColors[index % precipitationColors.length],
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-secondary/5 border-secondary/40">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-secondary" />
-                  <span className="text-sm font-medium text-secondary">Rain probability</span>
-                </div>
-                <span className="text-xs uppercase tracking-wide text-secondary/70">confidence</span>
-              </div>
-              <div className="h-36">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart
-                    innerRadius="60%"
-                    data={[{ name: "probability", value: probabilityPercent, fill: probabilityColors[0] }]}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                    <RadialBar dataKey="value" cornerRadius={8} background fill={probabilityColors[1]} animationDuration={800} />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="text-3xl font-semibold text-foreground text-center">
-                <AnimatedNumber value={probabilityPercent} decimals={1} />%
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-1 capitalize">
-                {summary.ml_rain_probability.confidence_level} confidence • ±{summary.ml_rain_probability.uncertainty.toFixed(2)}
-              </p>
-            </Card>
-
-            <Card className="p-4 bg-accent/5 border-accent/40">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-accent-foreground">Model agreement</span>
-                <span className="text-xs text-muted-foreground">classification</span>
-              </div>
-              <div className="space-y-3">
-                {probabilityModels.map((model) => (
-                  <div key={model.model} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                      <span>{model.model}</span>
-                      <span>{formatPercent(model.value)}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-accent to-primary transition-all duration-700"
-                        style={{ width: `${Math.max(model.value * 100, 4)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
-            <Card className="p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-4">Regression ensemble weights</h4>
-              <div className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={regressionWeights}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="model" axisLine={false} tickLine={false} stroke="currentColor" />
-                    <Tooltip
-                      cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
-                      contentStyle={{ background: "hsl(var(--card))", borderRadius: 12, border: "1px solid hsl(var(--border))" }}
-                      formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, "Weight"]}
-                    />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={700}>
-                      {regressionWeights.map((entry, index) => (
-                        <Cell key={entry.model} fill={precipitationColors[index % precipitationColors.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-4">Classification ensemble weights</h4>
-              <div className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={classificationWeights}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="model" axisLine={false} tickLine={false} stroke="currentColor" />
-                    <Tooltip
-                      cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
-                      contentStyle={{ background: "hsl(var(--card))", borderRadius: 12, border: "1px solid hsl(var(--border))" }}
-                      formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, "Weight"]}
-                    />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} animationDuration={700}>
-                      {classificationWeights.map((entry, index) => (
-                        <Cell key={entry.model} fill={weightColors[index % weightColors.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
+          <div className="w-40 h-40">
+            <ResponsiveContainer>
+              <RadialBarChart innerRadius="70%" outerRadius="100%" data={radialData} startAngle={90} endAngle={-270}>
+                <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                <RadialBar dataKey="value" cornerRadius={10} fill={probabilityColors[0]} />
+              </RadialBarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </Card>
 
-      {riskScores && riskScores.length > 0 && (
-        <Card className="p-4 md:p-6 bg-card/80 border-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Condition risk outlook</h3>
-            <span className="text-xs text-muted-foreground">Likelihood of challenging weather</span>
+      {/* Individual regression models (mm) */}
+      <Card className="p-4">
+        <p className="text-sm text-muted-foreground mb-2">Ensemble precipitation</p>
+        <div className="w-full h-48">
+          <ResponsiveContainer>
+            <BarChart data={regData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <Tooltip />
+              <Bar dataKey="mm">
+                {regData.map((_, i) => (
+                  <Cell key={i} fill={precipitationColors[i % precipitationColors.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          95% CI: {fmtNumber(summary?.ml_precipitation_mm?.confidence_interval_mm?.lower, 2)} –
+          {` `}{fmtNumber(summary?.ml_precipitation_mm?.confidence_interval_mm?.upper, 2)} mm •
+          Uncertainty ±{fmtNumber(summary?.ml_precipitation_mm?.uncertainty_mm, 2)} mm
+        </p>
+      </Card>
+
+      {/* Weights (reg + cls) */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground mb-2">Regression ensemble weights</p>
+          <div className="w-full h-44">
+            <ResponsiveContainer>
+              <BarChart data={weightsReg}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <Tooltip />
+                <Bar dataKey="w">
+                  {weightsReg.map((_, i) => (
+                    <Cell key={i} fill={weightColors[i % weightColors.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {riskScores.map((risk, index) => (
-              <div key={risk.id} className="p-3 rounded-xl border bg-gradient-to-r from-background via-card to-background">
-                <div className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                  <span className="capitalize">{risk.label}</span>
-                  <span className="text-foreground">
-                    <AnimatedNumber value={risk.probability * 100} decimals={0} />%
-                  </span>
-                </div>
-                <div className="h-2 mt-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${Math.max(risk.probability * 100, 4)}%`,
-                      backgroundImage: `linear-gradient(90deg, ${probabilityColors[0]}, ${precipitationColors[index % precipitationColors.length]})`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{risk.description}</p>
+        </Card>
+
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground mb-2">Classification ensemble weights</p>
+          <div className="w-full h-44">
+            <ResponsiveContainer>
+              <BarChart data={weightsCls}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <Tooltip />
+                <Bar dataKey="w">
+                  {weightsCls.map((_, i) => (
+                    <Cell key={i} fill={weightColors[i % weightColors.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* Risks */}
+      {Array.isArray(riskScores) && riskScores.length > 0 && (
+        <Card className="p-4">
+          <p className="text-sm text-muted-foreground mb-3">Condition risk outlook</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {riskScores.map((r) => (
+              <div key={r.id} className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">{r.label}</div>
+                <div className="text-xl font-semibold">{fmtPercent(r.probability, 0)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{r.description}</div>
               </div>
             ))}
           </div>
