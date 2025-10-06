@@ -61,12 +61,28 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
     setLoading(true)
 
     try {
-      // Obtener datos del clima
-      const response = await fetch(`/api/weather?lat=${lat}&lon=${lng}`)
-      const data = await response.json()
+      // Obtener datos desde el backend de análisis
+      const analyzeUrl = new URL(
+        process.env.NEXT_PUBLIC_BACKEND_ANALYZE_URL ?? "http://127.0.0.1:8000/analyze",
+      )
+      analyzeUrl.searchParams.set("lat", lat.toString())
+      analyzeUrl.searchParams.set("lon", lng.toString())
+      analyzeUrl.searchParams.set("target_date", new Date().toISOString().split("T")[0])
 
-      if (data.error) {
-        throw new Error(data.error)
+      const response = await fetch(analyzeUrl.toString(), {
+        headers: {
+          Accept: "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Analyze endpoint returned ${response.status}`)
+      }
+
+      const backendData = (await response.json()) as WeatherData
+      const weatherSummary: WeatherData = {
+        ...backendData,
+        locationLabel: backendData.locationLabel ?? `${lat.toFixed(2)}, ${lng.toFixed(2)}`,
       }
 
       // Crear o actualizar marcador
@@ -93,13 +109,11 @@ export function InteractiveMap({ onLocationSelect, onWeatherData, centerLocation
       const locationData: LocationData = {
         lat,
         lng,
-        name: data.name,
-        country: data.sys.country,
-        timezone: data.timezone,
+        name: weatherSummary.locationLabel ?? `${lat.toFixed(2)}, ${lng.toFixed(2)}`,
       }
 
       onLocationSelect(locationData)
-      onWeatherData(data)
+      onWeatherData(weatherSummary)
     } catch (error) {
       console.error("Error fetching weather:", error)
     } finally {

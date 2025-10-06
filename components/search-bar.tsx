@@ -10,26 +10,44 @@ import { Label } from "@/components/ui/label"
 import { MapSelector } from "./map-selector"
 
 interface SearchBarProps {
-  onSearch: (location: string, date: string) => void
+  onSearch: (params: { location: string; date: string; coordinates: { lat: number; lng: number } }) => void
   loading?: boolean
 }
 
 export function SearchBar({ onSearch, loading }: SearchBarProps) {
   const [location, setLocation] = useState("")
-  const [date, setDate] = useState("")
+  const today = new Date().toISOString().split("T")[0]
+  const [date, setDate] = useState(today)
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
   const [searchTrigger, setSearchTrigger] = useState<string>("")
+  const [showCoordinateWarning, setShowCoordinateWarning] = useState(false)
+  const [showDateWarning, setShowDateWarning] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (location.trim()) {
-      onSearch(location.trim(), date)
+    if (!location.trim()) {
+      return
     }
+
+    if (!coordinates) {
+      setShowCoordinateWarning(true)
+      return
+    }
+
+    if (!date) {
+      setShowDateWarning(true)
+      return
+    }
+
+    setShowCoordinateWarning(false)
+    setShowDateWarning(false)
+    onSearch({ location: location.trim(), date, coordinates })
   }
 
   const handleMapLocationSelect = (locationName: string, lat: number, lng: number) => {
     setLocation(locationName)
     setCoordinates({ lat, lng })
+    setShowCoordinateWarning(false)
   }
 
   useEffect(() => {
@@ -41,8 +59,6 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
 
     return () => clearTimeout(timer)
   }, [location])
-
-  const today = new Date().toISOString().split("T")[0]
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
@@ -73,11 +89,14 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
         <div>
           <Label className="text-sm font-medium text-foreground mb-2 block">Select a location on the map</Label>
           <MapSelector onLocationSelect={handleMapLocationSelect} searchLocation={searchTrigger} />
+          {showCoordinateWarning && (
+            <p className="text-xs text-destructive mt-2">Please select a point on the map to obtain coordinates.</p>
+          )}
         </div>
 
         <div>
           <Label htmlFor="date" className="text-sm font-medium text-foreground mb-2 block">
-            Date of the pronostic (optional)
+            Date of the pronostic
           </Label>
           <div className="relative">
             <Calendar className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
@@ -85,20 +104,26 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
               id="date"
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value)
+                setShowDateWarning(false)
+              }}
               min={today}
               className="pl-10 md:pl-12 h-12 md:h-14 text-base md:text-lg bg-card border-2 border-border focus:border-primary transition-colors"
               disabled={loading}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Select any future dato to observe the pronostic</p>
+          <p className="text-xs text-muted-foreground mt-2">Select the day to analyze with the backend service.</p>
+          {showDateWarning && (
+            <p className="text-xs text-destructive mt-2">Please choose a date for the analysis.</p>
+          )}
         </div>
 
         <Button
           type="submit"
           size="lg"
           className="w-full h-12 md:h-14 text-base md:text-lg bg-primary hover:bg-primary/90 text-primary-foreground"
-          disabled={loading || !location.trim()}
+          disabled={loading || !location.trim() || !coordinates || !date}
         >
           {loading ? (
             <>

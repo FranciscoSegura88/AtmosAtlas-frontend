@@ -3,24 +3,42 @@
 import { useState } from "react"
 import { SearchBar } from "@/components/search-bar"
 import { WeatherDisplay } from "@/components/weather-display"
-import { Cloud, Sun } from "lucide-react"
+import type { WeatherData } from "@/types/weather"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Cloud, Sun } from "lucide-react"
 
 export default function Home() {
-  const [weatherData, setWeatherData] = useState<any>(null)
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSearch = async (location: string, date: string) => {
+  const handleSearch = async ({ location, date, coordinates }: { location: string; date: string; coordinates: { lat: number; lng: number } }) => {
     setLoading(true)
+    setError(null)
     try {
-      const url = date
-        ? `/api/weather?location=${encodeURIComponent(location)}&date=${encodeURIComponent(date)}`
-        : `/api/weather?location=${encodeURIComponent(location)}`
+      const analyzeUrl = new URL(
+        process.env.NEXT_PUBLIC_BACKEND_ANALYZE_URL ?? "http://127.0.0.1:8000/analyze",
+      )
+      analyzeUrl.searchParams.set("lat", coordinates.lat.toString())
+      analyzeUrl.searchParams.set("lon", coordinates.lng.toString())
+      analyzeUrl.searchParams.set("target_date", date)
 
-      const response = await fetch(url)
-      const data = await response.json()
-      setWeatherData(data)
+      const response = await fetch(analyzeUrl.toString(), {
+        headers: {
+          Accept: "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Analyze endpoint returned ${response.status}`)
+      }
+
+      const data = (await response.json()) as WeatherData
+      setWeatherData({ ...data, locationLabel: location })
     } catch (error) {
       console.error("[v0] Error fetching weather:", error)
+      setWeatherData(null)
+      setError("No se pudo obtener la predicción desde el backend. Intenta de nuevo más tarde.")
     } finally {
       setLoading(false)
     }
@@ -53,6 +71,16 @@ export default function Home() {
         <div className="max-w-2xl mx-auto mb-8 md:mb-16">
           <SearchBar onSearch={handleSearch} loading={loading} />
         </div>
+
+        {error && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No pudimos obtener la predicción</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
 
         {/* Resultados del clima */}
         {weatherData && (

@@ -2,63 +2,109 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { WeatherAnimation } from "@/components/weather-animation"
-import { Droplets, Wind, Eye, Gauge, Download, Calendar } from "lucide-react"
+import { BackendForecastInsights } from "@/components/backend-forecast-insights"
+import type { WeatherData } from "@/types/weather"
+import { Activity, Calendar, Download, Droplets, Gauge, MapPin } from "lucide-react"
 
 interface WeatherDisplayProps {
-  data: {
-    location: string
-    temperature: number
-    condition: string
-    humidity: number
-    windSpeed: number
-    visibility: number
-    pressure: number
-    description: string
-    date?: string
-  }
+  data: WeatherData
 }
 
+const numberFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+})
+
+const percentFormatter = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 1,
+})
+
 export function WeatherDisplay({ data }: WeatherDisplayProps) {
+  const coordinateLabel = `${data.location.lat.toFixed(2)}, ${data.location.lon.toFixed(2)}`
+  const displayName = data.locationLabel ?? coordinateLabel
+  const formattedDate = new Date(data.prediction_for).toLocaleDateString("es-ES", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
+  const precipitation = data.ml_precipitation_mm
+  const rainProbability = data.ml_rain_probability
+
+  const baseFileSlug = `${data.prediction_for}-${displayName}`
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase()
+
   const handleDownloadJSON = () => {
-  const dataStr = JSON.stringify(data, null, 2)
+    const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: "application/json" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-  link.href = url
-  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.json`
+    link.href = url
+    link.download = `analyze-${baseFileSlug || "forecast"}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
 
+  const formatModelBreakdown = (records: Record<string, number>, unit: string) =>
+    Object.entries(records)
+      .map(([model, value]) => `${model.toUpperCase()}: ${numberFormatter.format(value)}${unit}`)
+      .join("\n")
+
   const handleDownloadText = () => {
-  const textContent = `
-WEATHER FORECAST
-================
+    const precipitationBreakdown = formatModelBreakdown(precipitation.individual_predictions_mm, " mm")
+    const probabilityBreakdown = formatModelBreakdown(rainProbability.individual_probabilities, "")
+    const regressionWeights = formatModelBreakdown(precipitation.ensemble_weights_reg, "")
+    const classificationWeights = formatModelBreakdown(rainProbability.ensemble_weights_cls, "")
 
-Location: ${data.location}
-${data.date ? `Date: ${new Date(data.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}` : "Date: Current"}
+    const textContent = `
+ANALYZE FORECAST SUMMARY
+========================
+Location: ${displayName}
+Latitude: ${data.location.lat}
+Longitude: ${data.location.lon}
+Prediction for: ${data.prediction_for}
 
-Temperature: ${Math.round(data.temperature)}°C
-Condition: ${data.description}
+PRECIPITATION (mm)
+------------------
+Ensemble prediction: ${numberFormatter.format(precipitation.prediction_mm)} mm
+Uncertainty: ±${numberFormatter.format(precipitation.uncertainty_mm)} mm
+Confidence interval: ${numberFormatter.format(precipitation.confidence_interval_mm.lower)} - ${numberFormatter.format(precipitation.confidence_interval_mm.upper)} mm
 
-DETAILS
--------
-Humidity: ${data.humidity}%
-Wind speed: ${data.windSpeed} km/h
-Visibility: ${data.visibility} km
-Pressure: ${data.pressure} hPa
+RAIN PROBABILITY
+---------------
+Probability: ${percentFormatter.format(rainProbability.probability)}
+Confidence level: ${rainProbability.confidence_level}
+Uncertainty: ±${rainProbability.uncertainty.toFixed(3)}
 
-Generated at: ${new Date().toLocaleString("en-US")}
-  `.trim()
+INDIVIDUAL MODEL PREDICTIONS
+----------------------------
+${precipitationBreakdown}
+
+INDIVIDUAL MODEL PROBABILITIES
+------------------------------
+${probabilityBreakdown}
+
+REGRESSION ENSEMBLE WEIGHTS
+---------------------------
+${regressionWeights}
+
+CLASSIFICATION ENSEMBLE WEIGHTS
+-------------------------------
+${classificationWeights}
+
+Generated at: ${new Date().toLocaleString("es-ES")}
+    `.trim()
 
     const dataBlob = new Blob([textContent], { type: "text/plain" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
-  link.href = url
-  link.download = `weather-${data.location.replace(/[^a-z0-9]/gi, "-")}-${data.date || "current"}.txt`
+    link.href = url
+    link.download = `analyze-${baseFileSlug || "forecast"}.txt`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -67,75 +113,76 @@ Generated at: ${new Date().toLocaleString("en-US")}
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-  {/* Main card */}
-      <Card className="p-4 md:p-8 bg-card/80 backdrop-blur-sm border-2">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
-          {/* Información principal */}
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">{data.location}</h2>
-            {data.date && (
-              <div className="flex items-center gap-2 text-muted-foreground mb-2 justify-center md:justify-start">
-                <Calendar className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">
-                  {new Date(data.date).toLocaleDateString("es-ES", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            )}
-            <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-4 capitalize">{data.description}</p>
-            <div className="text-5xl sm:text-6xl md:text-7xl font-bold text-primary">
-              {Math.round(data.temperature)}°C
+      <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Forecast analysis</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Machine learning insights for {formattedDate}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              {displayName}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              {formattedDate}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:gap-4 md:grid-cols-3 mt-6">
+          <div className="p-4 rounded-xl border bg-primary/5 border-primary/40">
+            <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <Droplets className="w-4 h-4" />
+              Precipitation (ensemble)
             </div>
+            <p className="text-2xl md:text-3xl font-semibold text-foreground mt-3">
+              {numberFormatter.format(precipitation.prediction_mm)} mm
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              ±{numberFormatter.format(precipitation.uncertainty_mm)} mm uncertainty
+            </p>
           </div>
 
-          {/* Animación del clima */}
-          <div className="flex-1 flex justify-center">
-            <WeatherAnimation condition={data.condition} humidity={data.humidity} />
+          <div className="p-4 rounded-xl border bg-secondary/5 border-secondary/40">
+            <div className="flex items-center gap-2 text-sm font-medium text-secondary">
+              <Activity className="w-4 h-4" />
+              Rain probability
+            </div>
+            <p className="text-2xl md:text-3xl font-semibold text-foreground mt-3">
+              {percentFormatter.format(rainProbability.probability)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 capitalize">
+              {rainProbability.confidence_level} confidence • ±{rainProbability.uncertainty.toFixed(3)}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl border bg-accent/5 border-accent/40">
+            <div className="flex items-center gap-2 text-sm font-medium text-accent-foreground">
+              <Gauge className="w-4 h-4" />
+              Confidence interval
+            </div>
+            <p className="text-sm text-muted-foreground mt-3">
+              {numberFormatter.format(precipitation.confidence_interval_mm.lower)} mm -
+              {" "}
+              {numberFormatter.format(precipitation.confidence_interval_mm.upper)} mm
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Latitude {data.location.lat.toFixed(2)} • Longitude {data.location.lon.toFixed(2)}
+            </p>
           </div>
         </div>
       </Card>
 
-  {/* Additional details */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
-          <div className="flex items-center gap-2 md:gap-3 mb-2">
-            <Droplets className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Humidity</span>
-          </div>
-          <div className="text-2xl md:text-3xl font-bold text-foreground">{data.humidity}%</div>
-        </Card>
+      <BackendForecastInsights summary={data} />
 
-        <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
-          <div className="flex items-center gap-2 md:gap-3 mb-2">
-            <Wind className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Wind</span>
-          </div>
-          <div className="text-2xl md:text-3xl font-bold text-foreground">{data.windSpeed} km/h</div>
-        </Card>
-
-        <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
-          <div className="flex items-center gap-2 md:gap-3 mb-2">
-            <Eye className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Visibility</span>
-          </div>
-          <div className="text-2xl md:text-3xl font-bold text-foreground">{data.visibility} km</div>
-        </Card>
-
-        <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2 hover:border-primary transition-colors">
-          <div className="flex items-center gap-2 md:gap-3 mb-2">
-            <Gauge className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="text-xs md:text-sm text-muted-foreground">Pressure</span>
-          </div>
-          <div className="text-2xl md:text-3xl font-bold text-foreground">{data.pressure} hPa</div>
-        </Card>
-      </div>
-
-  {/* Download information */}
       <Card className="p-4 md:p-6 bg-card/80 backdrop-blur-sm border-2">
-  <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Download information</h3>
+        <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">
+          Download the analysis
+        </h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             onClick={handleDownloadText}
